@@ -8,19 +8,27 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
 type problem struct {
 	q, a string
 }
 
+var (
+	out         io.Writer = os.Stdout
+	csvFilename string
+	timeLimit   int
+)
+
 func main() {
-	csvFilename := flag.String("csv", "problems.csv", "a csv file in the format 'question,answer'")
+	flag.StringVar(&csvFilename, "csv", "problems.csv", "a csv file in the format 'question,answer'")
+	flag.IntVar(&timeLimit, "limit", 30, "the time limit for the quiz in seconds")
 	flag.Parse()
 
-	file, err := os.Open(*csvFilename)
+	file, err := os.Open(csvFilename)
 	if err != nil {
-		exit(fmt.Sprintf("failed to open CSV file: %s", *csvFilename))
+		exit(fmt.Sprintf("failed to open CSV file: %s", csvFilename))
 	}
 	r := csv.NewReader(file)
 	lines, err := r.ReadAll()
@@ -28,6 +36,7 @@ func main() {
 		exit(fmt.Sprintf("failed to parse the provided CSV file"))
 	}
 	problems := parseLines(lines)
+
 	correct, err := ask(problems, os.Stdin)
 	if err != nil {
 		exit(fmt.Sprintf("getting user input: %v", err))
@@ -48,15 +57,34 @@ func parseLines(lines [][]string) []problem {
 }
 
 func ask(problems []problem, in io.Reader) (correct int, err error) {
+	timer := time.NewTimer(time.Duration(timeLimit) * time.Second)
 	scanner := bufio.NewScanner(in)
 	scanner.Split(bufio.ScanWords)
+	answerCh := make(chan string)
+	errorCh := make(chan error)
+
 	for i, p := range problems {
 		fmt.Printf("Problem #%d: %s = \n", i+1, p.q)
-		if scanner.Scan() && scanner.Text() == p.a {
-			correct++
-		}
-		if err := scanner.Err(); err != nil {
-			return correct, err
+
+		go func() {
+			if scanner.Scan() {
+				answerCh <- scanner.Text()
+			}
+			if err := scanner.Err(); err != nil {
+				errorCh <- err
+			}
+		}()
+
+		select {
+		case <-timer.C:
+			fmt.Fprintln(out, "Times up!")
+			return
+		case answer := <-answerCh:
+			if answer == p.a {
+				correct++
+			}
+		case err = <-errorCh:
+			return
 		}
 	}
 	return

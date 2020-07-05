@@ -2,8 +2,10 @@ package main
 
 import (
 	"io"
+	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseLines(t *testing.T) {
@@ -50,7 +52,7 @@ func TestParseLines(t *testing.T) {
 	}
 }
 
-func TestAsk(t *testing.T) {
+func TestAskScoring(t *testing.T) {
 	problems := []problem{{"1+2", "3"}, {"10+4", "14"}, {"9+6", "15"}}
 	tests := []struct {
 		inputPs      []problem
@@ -82,7 +84,24 @@ func TestAsk(t *testing.T) {
 	for _, test := range tests {
 		score, _ := ask(test.inputPs, test.answerReader)
 		if score != test.wantScore {
-			t.Errorf("ask(%v): scored %d, want %d", test.inputPs, score, test.wantScore)
+			t.Errorf("ask(%v, answerReader): scored %d, want %d",
+				test.inputPs, score, test.wantScore)
 		}
+	}
+}
+
+func TestAskTimeOut(t *testing.T) {
+	timeLimit = 1
+	testProblems := []problem{{"1+2", "3"}}
+	done := make(chan struct{})
+	go func() {
+		ask(testProblems, os.Stdin)
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-time.After(2 * time.Second):
+		t.Errorf("ask(%v, os.Stdin) did not time out", testProblems)
+	case <-done:
 	}
 }
