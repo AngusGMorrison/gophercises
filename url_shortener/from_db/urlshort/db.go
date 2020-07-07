@@ -15,12 +15,15 @@ type RedirectStore struct {
 	DB *bolt.DB
 }
 
-const bucketName = "redirects"
+var (
+	dbName     = "redirects.db"
+	bucketName = "redirects"
+)
 
 // OpenRedirectStore returns a new boltdb instance as a RedirectDB with a bucket to store redirects.
 // The caller is responsible for closing the DB when done.
 func OpenRedirectStore() (*RedirectStore, error) {
-	db, err := bolt.Open("redirects.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(dbName, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}
@@ -40,14 +43,11 @@ func OpenRedirectStore() (*RedirectStore, error) {
 
 // Seed parses a YAML file and adds all path:url pairs found to rs' underlying database.
 func (rs *RedirectStore) Seed(path string) error {
-	data, err := readSeedFile(path)
+	redirects, err := readSeedFile(path)
 	if err != nil {
 		return err
 	}
-	var redirects []Redirect
-	if err = yaml.Unmarshal(data, &redirects); err != nil {
-		return err
-	}
+
 	err = rs.DB.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		for _, r := range redirects {
@@ -61,12 +61,21 @@ func (rs *RedirectStore) Seed(path string) error {
 	return err
 }
 
-func readSeedFile(path string) ([]byte, error) {
+func readSeedFile(path string) ([]Redirect, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
+
 	data, err := ioutil.ReadAll(file)
-	file.Close()
-	return data, err
+	if err != nil {
+		return nil, err
+	}
+
+	var redirects []Redirect
+	if err = yaml.Unmarshal(data, &redirects); err != nil {
+		return nil, err
+	}
+	return redirects, nil
 }
