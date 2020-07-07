@@ -10,8 +10,11 @@ import (
 	"github.com/angusgmorrison/gophercises/url_shortener/from_db/urlshort"
 )
 
+var seed bool
+
 func main() {
-	seed := flag.Bool(
+	flag.BoolVar(
+		&seed,
 		"seed",
 		false,
 		"seed the DB with data from the YAML file specified as an argument",
@@ -19,22 +22,11 @@ func main() {
 	flag.Parse()
 
 	// Initialize the DB
-	store, err := urlshort.OpenRedirectStore()
+	store, err := initializeStore()
 	if err != nil {
-		exit(fmt.Sprintf("opening DB: %v", err))
+		exit(err.Error())
 	}
 	defer store.DB.Close()
-
-	// Seed the DB
-	if *seed {
-		args := flag.Args()
-		if len(args) == 0 {
-			exit(fmt.Sprintf("usage: %s -format=[json|yaml] <file path>", os.Args[0]))
-		}
-		if err := store.Seed(args[0]); err != nil {
-			exit(fmt.Sprintf("seeding DB: %v", err))
-		}
-	}
 
 	// Build the default MapHandler using the default mux as the fallback.
 	mux := defaultMux()
@@ -42,6 +34,25 @@ func main() {
 
 	log.Println("Starting the server on :8080")
 	http.ListenAndServe(":8080", handler)
+}
+
+func initializeStore() (*urlshort.RedirectStore, error) {
+	store, err := urlshort.OpenRedirectStore()
+	if err != nil {
+		return nil, fmt.Errorf("opening DB: %v", err)
+	}
+
+	// Seed the DB
+	if seed {
+		args := flag.Args()
+		if len(args) == 0 {
+			return nil, fmt.Errorf("usage: %s -format=[json|yaml] <file path>", os.Args[0])
+		}
+		if err := store.Seed(args[0]); err != nil {
+			return nil, fmt.Errorf("seeding DB: %v", err)
+		}
+	}
+	return store, err
 }
 
 func defaultMux() *http.ServeMux {
