@@ -1,0 +1,10 @@
+[
+  {
+    "path": "/file-url",
+    "url": "https://godoc.org/github.com/gophercises/urlshort"
+  },
+  {
+    "path": "/godoc",
+    "url": "https://godoc.org/"
+  }
+]
