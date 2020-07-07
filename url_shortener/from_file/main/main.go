@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/angusgmorrison/gophercises/url_shortener/urlshort"
+	"github.com/angusgmorrison/gophercises/url_shortener/from_file/urlshort"
 )
 
 var defaultRedirects = map[string]string{
@@ -77,6 +77,7 @@ func readFileData() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 	return ioutil.ReadAll(file)
 }
 
