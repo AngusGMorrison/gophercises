@@ -17,12 +17,12 @@ type Redirect struct {
 func Handler(store *RedirectStore, fallback http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		foundURL := make([]byte, 0, 100)
+		var foundURL string
 		store.DB.View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(bucketName))
 			v := b.Get([]byte(path))
 			if v != nil {
-				foundURL = append(foundURL, v...)
+				foundURL = string(v)
 			}
 			return nil
 		})
