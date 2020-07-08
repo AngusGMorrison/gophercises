@@ -53,7 +53,8 @@ func TestParseLines(t *testing.T) {
 }
 
 func TestAskScoring(t *testing.T) {
-	problems := []problem{{"1+2", "3"}, {"10+4", "14"}, {"9+6", "15"}}
+	timeLimit = 30
+	problems := []problem{{"1+2", "3"}, {"10+4", "14"}, {"9+6", "15"}, {"a + a", "2a"}}
 	tests := []struct {
 		inputPs      []problem
 		answerReader io.Reader
@@ -61,22 +62,32 @@ func TestAskScoring(t *testing.T) {
 	}{
 		{
 			inputPs:      problems,
-			answerReader: strings.NewReader("3 14 15"),
-			wantScore:    3,
+			answerReader: strings.NewReader("3 14 15 2a"),
+			wantScore:    4,
 		},
 		{
 			inputPs:      problems,
-			answerReader: strings.NewReader("4 20 0"),
+			answerReader: strings.NewReader("3 14 15 2a"),
+			wantScore:    4,
+		},
+		{
+			inputPs:      problems,
+			answerReader: strings.NewReader("3 14 15 2A"),
+			wantScore:    4,
+		},
+		{
+			inputPs:      problems,
+			answerReader: strings.NewReader("4 20 0 b"),
 			wantScore:    0,
 		},
 		{
 			inputPs:      problems,
-			answerReader: strings.NewReader("3 20 0"),
+			answerReader: strings.NewReader("3 20 0 b"),
 			wantScore:    1,
 		},
 		{
 			inputPs:      []problem{},
-			answerReader: strings.NewReader("3 14 15"),
+			answerReader: strings.NewReader("3 14 15 2a"),
 			wantScore:    0,
 		},
 	}

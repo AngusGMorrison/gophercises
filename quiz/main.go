@@ -50,7 +50,7 @@ func parseLines(lines [][]string) []problem {
 	for i, line := range lines {
 		ret[i] = problem{
 			q: line[0],
-			a: strings.TrimSpace(line[1]),
+			a: formatAnswer(line[1]),
 		}
 	}
 	return ret
@@ -68,7 +68,7 @@ func ask(problems []problem, in io.Reader) (correct int, err error) {
 
 		go func() {
 			if scanner.Scan() {
-				answerCh <- scanner.Text()
+				answerCh <- formatAnswer(scanner.Text())
 			}
 			if err := scanner.Err(); err != nil {
 				errorCh <- err
@@ -88,6 +88,10 @@ func ask(problems []problem, in io.Reader) (correct int, err error) {
 		}
 	}
 	return
+}
+
+func formatAnswer(answer string) string {
+	return strings.ToLower(strings.TrimSpace(answer))
 }
 
 func exit(msg string) {
