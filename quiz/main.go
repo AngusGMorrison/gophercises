@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -18,11 +19,13 @@ type problem struct {
 var (
 	out         io.Writer = os.Stdout
 	csvFilename string
+	shuffle     bool
 	timeLimit   int
 )
 
 func main() {
 	flag.StringVar(&csvFilename, "csv", "problems.csv", "a csv file in the format 'question,answer'")
+	flag.BoolVar(&shuffle, "shuffle", false, "shuffle questions")
 	flag.IntVar(&timeLimit, "limit", 30, "the time limit for the quiz in seconds")
 	flag.Parse()
 
@@ -36,6 +39,9 @@ func main() {
 		exit(fmt.Sprintf("failed to parse the provided CSV file"))
 	}
 	problems := parseLines(lines)
+	if shuffle {
+		shuffleProblems(problems)
+	}
 
 	correct, err := ask(problems, os.Stdin)
 	if err != nil {
@@ -54,6 +60,12 @@ func parseLines(lines [][]string) []problem {
 		}
 	}
 	return ret
+}
+
+func shuffleProblems(problems []problem) {
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(problems),
+		func(i, j int) { problems[i], problems[j] = problems[j], problems[i] })
 }
 
 func ask(problems []problem, in io.Reader) (correct int, err error) {

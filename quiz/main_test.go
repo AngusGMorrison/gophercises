@@ -52,6 +52,19 @@ func TestParseLines(t *testing.T) {
 	}
 }
 
+func TestShuffleProblems(t *testing.T) {
+	problems := []problem{{"1+2", "3"}, {"10+4", "14"}, {"9+6", "15"}, {"a + a", "2a"}}
+	shuffled := make([]problem, 4)
+	copy(shuffled, problems)
+	shuffleProblems(shuffled)
+	if problems[0] == shuffled[0] &&
+		problems[1] == shuffled[1] &&
+		problems[2] == shuffled[2] &&
+		problems[3] == shuffled[3] {
+		t.Errorf("problems array was not shuffled")
+	}
+}
+
 func TestAskScoring(t *testing.T) {
 	timeLimit = 30
 	problems := []problem{{"1+2", "3"}, {"10+4", "14"}, {"9+6", "15"}, {"a + a", "2a"}}
