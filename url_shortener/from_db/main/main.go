@@ -37,7 +37,7 @@ func main() {
 }
 
 func initializeStore() (*urlshort.RedirectStore, error) {
-	store, err := urlshort.OpenRedirectStore()
+	store, err := urlshort.OpenRedirectStore("redirects.db")
 	if err != nil {
 		return nil, fmt.Errorf("opening DB: %v", err)
 	}

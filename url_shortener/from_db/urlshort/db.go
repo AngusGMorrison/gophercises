@@ -15,15 +15,12 @@ type RedirectStore struct {
 	DB *bolt.DB
 }
 
-var (
-	dbName     = "redirects.db"
-	bucketName = "redirects"
-)
+var bucketName = "redirects"
 
 // OpenRedirectStore returns a new boltdb instance as a RedirectDB with a bucket to store redirects.
 // The caller is responsible for closing the DB when done.
-func OpenRedirectStore() (*RedirectStore, error) {
-	db, err := bolt.Open(dbName, 0600, &bolt.Options{Timeout: 1 * time.Second})
+func OpenRedirectStore(path string) (*RedirectStore, error) {
+	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}

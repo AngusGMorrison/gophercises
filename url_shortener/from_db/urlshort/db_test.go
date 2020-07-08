@@ -12,13 +12,12 @@ import (
 const seedFixture = "fixtures/seeds_test.yaml"
 
 func TestOpenRedirectStore(t *testing.T) {
-	oldDBName := dbName
-	dbName = tempfile()
-	defer os.Remove(dbName)
+	path := tempfile()
+	defer os.Remove(path)
 
 	// Test DB creation in main routine to ensure failure of test suite and proper teardown if it
 	// fails.
-	store, err := OpenRedirectStore()
+	store, err := OpenRedirectStore(path)
 	if err != nil {
 		t.Fatalf("opening DB: %v", err)
 	}
@@ -36,16 +35,13 @@ func TestOpenRedirectStore(t *testing.T) {
 			t.Fatalf("default bucket %q was not created", bucketName)
 		}
 	})
-
-	dbName = oldDBName
 }
 
 func TestSeed(t *testing.T) {
-	oldDBName := dbName
-	dbName = tempfile()
-	defer os.Remove(dbName)
+	path := tempfile()
+	defer os.Remove(path)
 
-	store, err := OpenRedirectStore()
+	store, err := OpenRedirectStore(path)
 	if err != nil {
 		panic(err)
 	}
@@ -81,8 +77,6 @@ func TestSeed(t *testing.T) {
 			return nil
 		})
 	})
-
-	dbName = oldDBName
 }
 
 func tempfile() string {
