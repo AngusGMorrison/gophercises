@@ -15,18 +15,20 @@ import (
 func main() {
 	filename := flag.String("file", "gopher.json", "the JSON file with the CYOA story")
 	port := flag.Int("port", 3000, "the port to start the CYOA web application on")
-	flag.Parse()
+  flag.Parse()
+  fmt.Printf("Using the story in %s.\n", *filename)
 
+  // Open the JSON file and parse the story in it.
 	f, err := os.Open(*filename)
 	if err != nil {
 		exit(err.Error())
 	}
-
 	story, err := cyoa.JSONStory(f)
 	if err != nil {
 		exit(fmt.Sprintf("parsing %s: %v", *filename, err))
 	}
 
+  // Create our customer CYOA story handler
 	tmpl := template.Must(template.New("").Parse(storyTmpl))
 	handler := cyoa.NewHandler(
 		story,
@@ -34,6 +36,7 @@ func main() {
 		cyoa.WithPathFunc(pathFn),
 	)
 
+  // Create a ServeMux to route our requests
 	mux := http.NewServeMux()
 	mux.Handle("/story/", handler)
 	log.Printf("Starting the server at: %d\n", *port)

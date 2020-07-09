@@ -1,0 +1,26 @@
+{
+  "C1": {
+    "title": "C1",
+    "story": [
+      "This is Chapter 1."
+    ],
+    "options": [
+      {
+        "text": "O1",
+        "chapter": "/C2/"
+      }
+    ]
+  },
+  "C2": {
+    "title": "C2",
+    "story": [
+      "This is Chapter 2."
+    ],
+    "options": [
+      {
+        "text": "O1",
+        "chapter": "/C1/"
+      }
+    ]
+  }
+}

@@ -82,19 +82,24 @@ var defaultHandlerTmpl = `
 </body>
 </html>`
 
+// A Story is the CYOA superstructure, mapping chapter title strings to the chapter contents.
 type Story map[string]Chapter
 
+// A Chapter holds the details of a single step within the CYOA journey.
 type Chapter struct {
 	Title      string   `json:"title"`
 	Paragraphs []string `json:"story"`
 	Options    []Option `json:"options"`
 }
 
+// An Option contains a reference to another chapter to be displayed if the user selects the
+// corresponding text.
 type Option struct {
 	Text    string `json:"text"`
 	Chapter string `json:"chapter"`
 }
 
+// JSONStory decodes a story from input JSON.
 func JSONStory(r io.Reader) (Story, error) {
 	d := json.NewDecoder(r)
 	var story Story
@@ -130,20 +135,26 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Chapter not found.", http.StatusNotFound)
 }
 
+// HandlerOption returns a function that configures a handler when called.
 type HandlerOption func(h *handler)
 
+// WithTemplate allows users to specify a custom template for the handler to use in responses.
 func WithTemplate(t *template.Template) HandlerOption {
 	return func(h *handler) {
 		h.t = t
 	}
 }
 
+// WithPathFunc allows users to specify an alternative URL structure to the handler. By default,
+// the hanlder will match all paths.
 func WithPathFunc(fn func(r *http.Request) string) HandlerOption {
 	return func(h *handler) {
 		h.pathFn = fn
 	}
 }
 
+// NewHandler configures a new handler according to the story and HanlderOptions supplied by the
+// user, and returns a pointer that satisfies the http.Handler interface.
 func NewHandler(s Story, opts ...HandlerOption) http.Handler {
 	h := &handler{s, tmpl, defaultPathFn}
 	for _, opt := range opts {
