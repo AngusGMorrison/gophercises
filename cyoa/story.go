@@ -10,12 +10,12 @@ import (
 )
 
 func init() {
-	tmpl = template.Must(template.New("").Parse(defaultHandlerTmpl))
+	defaultTmpl = template.Must(template.New("").Parse(defaultTmplStr))
 }
 
-var tmpl *template.Template
+var defaultTmpl *template.Template
 
-var defaultHandlerTmpl = `
+var defaultTmplStr = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -115,7 +115,7 @@ type handler struct {
 	pathFn func(r *http.Request) string
 }
 
-func defaultPathFn(r *http.Request) string {
+var defaultPathFn = func(r *http.Request) string {
 	path := strings.TrimSpace(r.URL.Path)
 	if path == "" || path == "/" {
 		path = "/intro"
@@ -156,7 +156,7 @@ func WithPathFunc(fn func(r *http.Request) string) HandlerOption {
 // NewHandler configures a new handler according to the story and HanlderOptions supplied by the
 // user, and returns a pointer that satisfies the http.Handler interface.
 func NewHandler(s Story, opts ...HandlerOption) http.Handler {
-	h := &handler{s, tmpl, defaultPathFn}
+	h := &handler{s, defaultTmpl, defaultPathFn}
 	for _, opt := range opts {
 		opt(h)
 	}
