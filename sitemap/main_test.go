@@ -20,25 +20,25 @@ const testHTML = `
 `
 
 func TestTrimURL(t *testing.T) {
-	tests := []struct {
-		in, want string
-	}{
-		{"https://www.test.com", "https://www.test.com"},
-		{"https://www.test.com/", "https://www.test.com"},
-		{"https://www.test.com/path", "https://www.test.com"},
-		{"https://www.test.com/path#fragment", "https://www.test.com"},
-		{"https://www.test.com/path?query=test", "https://www.test.com"},
+	const wantURL = "https://www.test.com"
+	tests := []string{
+		"https://www.test.com",
+		"https://www.test.com/",
+		"https://www.test.com/path",
+		"https://www.test.com/path/longer",
+		"https://www.test.com/path#fragment",
+		"https://www.test.com/path?query=test",
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("trimURL(%q)", test.in), func(t *testing.T) {
-			trimmed, err := trimURL(test.in)
+		t.Run(fmt.Sprintf("trimURL(%q)", test), func(t *testing.T) {
+			trimmed, err := trimURL(test)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
 			got := trimmed.String()
-			if got != test.want {
-				t.Fatalf("got %s, want %s", got, test.want)
+			if got != wantURL {
+				t.Fatalf("got %s, want %s", got, wantURL)
 			}
 		})
 	}
