@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
@@ -28,7 +27,7 @@ var hostURL *url.URL // match only URLs with the host scheme and domain
 
 func main() {
 	URLFlag := flag.String("url", "https://gophercises.com", "the URL of the site to map")
-	maxDepth := flag.Int("depth", 3, "the maximum number of links deep to traverse")
+	// maxDepth := flag.Int("depth", 3, "the maximum number of links deep to traverse")
 	flag.Parse()
 
 	var err error
@@ -36,22 +35,22 @@ func main() {
 	if err != nil {
 		exit(err.Error())
 	}
-	pages := bfs(*URLFlag, *maxDepth)
-	toXML := urlset{
-		URLs:  make([]loc, len(pages)),
-		Xmlns: xmlns,
-	}
-	for i, page := range pages {
-		toXML.URLs[i] = loc{page}
-	}
-	enc := xml.NewEncoder(os.Stdout)
-	enc.Indent("", "  ")
-	fmt.Print(xml.Header)
-	if err = enc.Encode(toXML); err != nil {
-		exit(fmt.Sprintf("encoding XML: %v", err))
-	}
-	fmt.Println()
-
+	bfs(*URLFlag)
+	// pages := bfs(*URLFlag, *maxDepth)
+	// toXML := urlset{
+	// 	URLs:  make([]loc, len(pages)),
+	// 	Xmlns: xmlns,
+	// }
+	// for i, page := range pages {
+	// 	toXML.URLs[i] = loc{page}
+	// }
+	// enc := xml.NewEncoder(os.Stdout)
+	// enc.Indent("", "  ")
+	// fmt.Print(xml.Header)
+	// if err = enc.Encode(toXML); err != nil {
+	// 	exit(fmt.Sprintf("encoding XML: %v", err))
+	// }
+	// fmt.Println()
 }
 
 // trimPath returns a *url.URL consisting of only sceheme and host.
@@ -75,36 +74,53 @@ type searchResult struct {
 	links []string
 }
 
-func bfs(URLStr string, maxDepth int) []string {
+// func bfs(URLStr string, maxDepth int) []string {
+// 	seen := make(map[string]struct{})
+// 	worklist := make(chan searchResult)
+// 	sema := make(chan struct{}, 20) // counting semaphore
+
+// 	go func() { worklist <- searchResult{links: []string{URLStr}} }()
+
+// 	for pending := 1; pending > 0; pending-- { // run until all goroutines have returned
+// 		results := <-worklist
+// 		for _, link := range results.links {
+// 			if _, ok := seen[link]; !ok {
+// 				seen[link] = struct{}{}
+// 				if results.depth == maxDepth {
+// 					continue // record links found at maxDepth as seen, but do not crawl
+// 				}
+// 				pending++
+// 				go func(URLStr string) {
+// 					sema <- struct{}{}
+// 					worklist <- searchResult{results.depth + 1, get(URLStr)}
+// 					<-sema
+// 				}(link)
+// 			}
+// 		}
+// 	}
+
+// 	foundLinks := make([]string, 0, len(seen))
+// 	for link := range seen {
+// 		foundLinks = append(foundLinks, link)
+// 	}
+// 	return foundLinks
+// }
+
+func bfs(startLink string) {
 	seen := make(map[string]struct{})
-	worklist := make(chan searchResult)
-	sema := make(chan struct{}, 20) // counting semaphore
+	worklist := []string{startLink}
 
-	go func() { worklist <- searchResult{links: []string{URLStr}} }()
-
-	for pending := 1; pending > 0; pending-- { // run until all goroutines have returned
-		results := <-worklist
-		for _, link := range results.links {
+	for len(worklist) > 0 {
+		links := worklist
+		worklist = nil
+		for _, link := range links {
 			if _, ok := seen[link]; !ok {
 				seen[link] = struct{}{}
-				if results.depth == maxDepth {
-					continue // record links found at maxDepth as seen, but do not crawl
-				}
-				pending++
-				go func(URLStr string) {
-					sema <- struct{}{}
-					worklist <- searchResult{results.depth + 1, get(URLStr)}
-					<-sema
-				}(link)
+				fmt.Println(link)
+				worklist = append(worklist, get(link)...)
 			}
 		}
 	}
-
-	foundLinks := make([]string, 0, len(seen))
-	for link := range seen {
-		foundLinks = append(foundLinks, link)
-	}
-	return foundLinks
 }
 
 // get fetches a webpage and returns all links to other pages in the host domain.
