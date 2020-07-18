@@ -63,6 +63,40 @@ func draw(cards []deck.Card) (deck.Card, []deck.Card) {
 	return cards[0], cards[1:]
 }
 
+// TakePlayerTurn prompts the user for an action, processes it, and
+// returns the resulting GameState.
+func TakePlayerTurn(gs GameState) GameState {
+	var input string
+	fmt.Println("Player:", gs.Player)
+	fmt.Println("Dealer:", gs.Dealer.DealerString())
+	fmt.Println("What will you do? (h)it, (s)tand")
+	fmt.Scanf("%s\n", &input)
+
+	switch input {
+	case hit:
+		return Hit(gs)
+	case stand:
+		return Stand(gs)
+	default:
+		fmt.Println("Command not recognised: enter (h)it or (s)tand")
+		return gs
+	}
+}
+
+// TakeDealerTurn invokes shouldHit to determine whether the dealer
+// should hit or stand, then returns the resulting GameState.
+func TakeDealerTurn(gs GameState) GameState {
+	if shouldHit(gs.Dealer.Score(), gs.Dealer.MinScore()) {
+		return Hit(gs)
+	}
+	return Stand(gs)
+}
+
+// shouldHit determines whether the dealer AI should hit or stand.
+func shouldHit(score, minScore int) bool {
+	return score <= 16 || score == 17 && minScore != 17
+}
+
 // Hit draws a card from the top of the deck, adds it to the current
 // player's hand and checks whether they're bust.
 func Hit(gs GameState) GameState {
