@@ -8,7 +8,7 @@ import (
 
 // AI specifies the methods required for a player of a blackjack game.
 type AI interface {
-	Bet() int
+	Bet(shuffled bool) int
 	Play(hand []deck.Card, dealer deck.Card) Move
 	Outcome(hand [][]deck.Card, dealer []deck.Card)
 }
@@ -16,7 +16,7 @@ type AI interface {
 // dealerAI is the default implentation of the blackjack dealer.
 type dealerAI struct{}
 
-func (ai dealerAI) Bet() int {
+func (ai dealerAI) Bet(shuffled bool) int {
 	// noop
 	return 1
 }
@@ -25,9 +25,8 @@ func (ai dealerAI) Play(hand []deck.Card, dealer deck.Card) Move {
 	score := Score(hand...)
 	if score <= 16 || score == 17 && Soft(hand...) {
 		return MoveHit
-	} else {
-		return MoveStand
 	}
+	return MoveStand
 }
 
 func (ai dealerAI) Outcome(hand [][]deck.Card, dealer []deck.Card) {
@@ -42,15 +41,21 @@ func HumanAI() AI {
 
 type humanAI struct{}
 
-func (ai humanAI) Bet() int {
-	// Implement
-	return 0
+func (ai humanAI) Bet(shuffled bool) int {
+	if shuffled {
+		fmt.Println("Deck was just shuffled...")
+	}
+	fmt.Println("What would you like to bet? (min. 100)")
+	var bet int
+	fmt.Scanf("%d\n", &bet)
+	return bet
 }
 
 // Accepted player inputs.
 const (
-	stand = "s"
-	hit   = "h"
+	double = "d"
+	hit    = "h"
+	stand  = "s"
 )
 
 func (ai humanAI) Play(hand []deck.Card, dealer deck.Card) Move {
@@ -58,16 +63,18 @@ func (ai humanAI) Play(hand []deck.Card, dealer deck.Card) Move {
 		var input string
 		fmt.Println("AI:", hand)
 		fmt.Println("Dealer:", dealer)
-		fmt.Println("What will you do? (h)it, (s)tand")
+		fmt.Println("What will you do? (h)it, (s)tand, (d)ouble")
 		fmt.Scanf("%s\n", &input)
 
 		switch input {
+		case double:
+			return MoveDouble
 		case hit:
 			return MoveHit
 		case stand:
 			return MoveStand
 		default:
-			fmt.Println("Command not recognised: enter (h)it or (s)tand")
+			fmt.Println("Command not recognised: enter (h)it, (s)tand or (d)ouble")
 		}
 	}
 }

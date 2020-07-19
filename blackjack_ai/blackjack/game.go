@@ -1,6 +1,7 @@
 package blackjack
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/angusgmorrison/gophercises/deck"
@@ -55,21 +56,24 @@ type Game struct {
 	nDecks          int
 	nHands          int
 	minCards        int
-	deck            []deck.Card
-	phase           phase
-	player          []deck.Card
-	dealer          []deck.Card
-	dealerAI        AI
-	balance         int
 	blackjackPayout float64
+
+	phase phase
+	deck  []deck.Card
+
+	player    []deck.Card
+	playerBet int
+	balance   int
+
+	dealer   []deck.Card
+	dealerAI AI
 }
 
 // Phase represents the current stage of gameplay.
 type phase uint8
 
 const (
-	betting phase = iota
-	playerTurn
+	playerTurn phase = iota
 	dealerTurn
 	handOver
 )
@@ -79,17 +83,33 @@ const (
 // player's final balance.
 func (g *Game) Play(player AI) int {
 	for i := 0; i < g.nHands; i++ {
+		shuffled := false
 		if len(g.deck) < g.minCards {
 			g.deck = deck.New(deck.Deck(g.nDecks), deck.Shuffle)
+			shuffled = true
 		}
 
+		bet(g, player, shuffled)
+		shuffled = false
+
 		deal(g)
+		if Blackjack(g.dealer...) {
+			endHand(g, player)
+			continue
+		}
 
 		for g.phase == playerTurn {
 			hand := make([]deck.Card, len(g.player))
 			copy(hand, g.player)
 			move := player.Play(hand, g.dealer[0])
-			move(g)
+			if err := move(g); err != nil {
+				switch err {
+				case errBust:
+					MoveStand(g)
+				default:
+					panic(err)
+				}
+			}
 		}
 
 		for g.phase == dealerTurn {
@@ -105,7 +125,15 @@ func (g *Game) Play(player AI) int {
 	return g.balance
 }
 
-// Deal deals two cards from the top of the deck to all players in
+func bet(g *Game, ai AI, shuffled bool) {
+	bet := ai.Bet(shuffled)
+	if bet < 100 {
+		panic("bet must be at least 100")
+	}
+	g.playerBet = bet
+}
+
+// deal deals two cards from the top of the deck to all players in
 // alternating order.
 func deal(g *Game) {
 	g.player = make([]deck.Card, 0, 5)
@@ -118,6 +146,11 @@ func deal(g *Game) {
 		g.dealer = append(g.dealer, card)
 	}
 	g.phase = playerTurn
+}
+
+// Blackjack returns true if the hand is a blackjack.
+func Blackjack(hand ...deck.Card) bool {
+	return len(hand) == 2 && Score(hand...) == 21
 }
 
 // Soft returns true if the score of the hand is a soft score. I.e.
@@ -162,21 +195,35 @@ func min(a, b int) int {
 
 // Move is an action taken by players or the dealer on their term, as
 // determined by their AI Play method.
-type Move func(*Game)
+type Move func(*Game) error
+
+var (
+	errBust = errors.New("hand score exceeded 21")
+)
+
+func MoveDouble(g *Game) error {
+	if len(*g.currentHand()) != 2 {
+		return errors.New("can only double on a hand with 2 cards")
+	}
+	g.playerBet *= 2
+	MoveHit(g)
+	return MoveStand(g)
+}
 
 // MoveHit draws a new card and adds it to the current player's hand.
-func MoveHit(g *Game) {
-	hand := g.CurrentHand()
+func MoveHit(g *Game) error {
+	hand := g.currentHand()
 	var card deck.Card
 	card, g.deck = draw(g.deck)
 	*hand = append(*hand, card)
 	if Score(*hand...) >= 21 {
-		MoveStand(g)
+		return errBust
 	}
+	return nil
 }
 
 // CurrentHand returns the hand of the player whose turn it is.
-func (g *Game) CurrentHand() *[]deck.Card {
+func (g *Game) currentHand() *[]deck.Card {
 	switch g.phase {
 	case playerTurn:
 		return &g.player
@@ -192,37 +239,42 @@ func draw(cards []deck.Card) (deck.Card, []deck.Card) {
 }
 
 // MoveStand starts the next phase of gameplay.
-func MoveStand(g *Game) {
+func MoveStand(g *Game) error {
 	switch g.phase {
 	case playerTurn:
 		g.phase = dealerTurn
 	case dealerTurn:
 		g.phase = handOver
 	}
+	return nil
 }
 
 // endHand compares and prints the player scores along with the
 // outcome of the game, then clears the player hands.
 func endHand(g *Game, ai AI) {
 	pScore, dScore := Score(g.player...), Score(g.dealer...)
-
+	pBlackjack, dBlackjack := Blackjack(g.player...), Blackjack(g.dealer...)
+	winnings := g.playerBet
 	switch {
+	case pBlackjack && dBlackjack:
+		winnings = 0
+	case dBlackjack:
+		winnings *= -1
+	case pBlackjack:
+		winnings = int(float64(winnings) * g.blackjackPayout)
 	case pScore > 21:
-		fmt.Println("You busted")
-		g.balance--
+		winnings *= -1
 	case dScore > 21:
-		fmt.Println("Dealer busted")
-		g.balance++
+		// win
 	case pScore > dScore:
-		fmt.Println("You win!")
-		g.balance++
+		// win
 	case dScore > pScore:
-		fmt.Println("You lose!")
-		g.balance--
+		winnings *= -1
 	case dScore == pScore:
-		fmt.Println("Draw")
+		winnings = 0
 	}
 	fmt.Println()
+	g.balance += winnings
 
 	ai.Outcome([][]deck.Card{g.player}, g.dealer)
 	g.player = nil
