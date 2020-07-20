@@ -2,58 +2,52 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
 
+type file struct {
+	name, path string
+}
+
 func main() {
-	// fileName := "birthday_001.txt"
-	// // => Birthday - 1 of 4.txt
-	// newName, err := match(fileName, 4)
-	// if err != nil {
-	// 	fmt.Println("no match")
-	// 	os.Exit(1)
-	// }
-	// fmt.Println(newName)
 	dir := "fixtures"
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	var count int
-	toRename := make([]string, 0)
-	for _, file := range files {
-		if file.IsDir() {
-		} else {
-			_, err := match(file.Name(), 4)
-			if err == nil {
-				count++
-				toRename = append(toRename, file.Name())
-			}
+	var toRename []file
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		fmt.Println(path, info.IsDir())
+		if info.IsDir() {
+			return nil
 		}
-	}
+		if _, err := match(info.Name()); err == nil {
+			toRename = append(toRename, file{
+				name: info.Name(),
+				path: path,
+			})
+		}
+		return nil
+	})
 
 	for _, orig := range toRename {
-		newFileName, err := match(orig, count)
+		var nf file
+		var err error
+		nf.name, err = match(orig.name)
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "match %s: %v", orig.path, err.Error())
 		}
-		origPath := filepath.Join(dir, orig)
-		newPath := filepath.Join(dir, newFileName)
-		err = os.Rename(origPath, newPath)
+		nf.path = filepath.Join(nf.path, nf.name)
+		fmt.Printf("mv %s => %s\n", orig.path, nf.path)
+		err = os.Rename(orig.path, nf.path)
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "rename %s: %v", orig.path, err)
 		}
 	}
 }
 
 // match returns the new file name, or an error if the file name
 // didn't match our pattern.
-func match(fileName string, total int) (string, error) {
+func match(fileName string) (string, error) {
 	pieces := strings.Split(fileName, ".")
 	ext := pieces[len(pieces)-1]
 	base := strings.Join(pieces[:len(pieces)-1], ".")
@@ -63,5 +57,5 @@ func match(fileName string, total int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%s didn't match our pattern", fileName)
 	}
-	return fmt.Sprintf("%s - %d of %d.%s", strings.Title(name), number, total, ext), nil
+	return fmt.Sprintf("%s - %d.%s", strings.Title(name), number, ext), nil
 }
