@@ -36,7 +36,7 @@ func main() {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "match %s: %v", orig.path, err.Error())
 		}
-		nf.path = filepath.Join(nf.path, nf.name)
+		nf.path = filepath.Join(orig.path, nf.name)
 		fmt.Printf("mv %s => %s\n", orig.path, nf.path)
 		err = os.Rename(orig.path, nf.path)
 		if err != nil {
