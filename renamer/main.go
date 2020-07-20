@@ -34,13 +34,13 @@ func main() {
 		var err error
 		nf.name, err = match(orig.name)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "match %s: %v", orig.path, err.Error())
+			fmt.Fprintf(os.Stderr, "match %s: %v\n", orig.path, err.Error())
 		}
-		nf.path = filepath.Join(orig.path, nf.name)
+		nf.path = filepath.Join(dir, nf.name)
 		fmt.Printf("mv %s => %s\n", orig.path, nf.path)
 		err = os.Rename(orig.path, nf.path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "rename %s: %v", orig.path, err)
+			fmt.Fprintf(os.Stderr, "rename %s: %v\n", orig.path, err)
 		}
 	}
 }
