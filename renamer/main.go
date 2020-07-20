@@ -18,13 +18,15 @@ func main() {
 			return nil
 		}
 		currentDir := filepath.Dir(path)
-		if _, err := match(info.Name()); err == nil {
-			toRename[currentDir] = append(toRename[currentDir], info.Name())
+		if mr, err := match(info.Name()); err == nil {
+			key := filepath.Join(currentDir, fmt.Sprintf("%s.%s", mr.base, mr.ext))
+			toRename[key] = append(toRename[key], info.Name())
 		}
 		return nil
 	})
 
-	for dir, files := range toRename {
+	for k, files := range toRename {
+		dir := filepath.Dir(k)
 		n := len(files)
 		sort.Strings(files)
 		for i, fileName := range files {
