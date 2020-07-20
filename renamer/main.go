@@ -17,8 +17,9 @@ func main() {
 		if info.IsDir() {
 			return nil
 		}
+		currentDir := filepath.Dir(path)
 		if _, err := match(info.Name()); err == nil {
-			toRename[dir] = append(toRename[dir], info.Name())
+			toRename[currentDir] = append(toRename[currentDir], info.Name())
 		}
 		return nil
 	})
