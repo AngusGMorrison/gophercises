@@ -14,20 +14,27 @@ type file struct {
 
 func main() {
 	dir := "fixtures"
-	var toRename []file
+	toRename := make(map[string][]file)
+
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		fmt.Println(path, info.IsDir())
 		if info.IsDir() {
 			return nil
 		}
 		if _, err := match(info.Name()); err == nil {
-			toRename = append(toRename, file{
+			toRename[dir] = append(toRename[dir], file{
 				name: info.Name(),
 				path: path,
 			})
 		}
 		return nil
 	})
+
+	for _, dir := range toRename {
+		for _, f := range dir {
+			fmt.Println("%q\n", f)
+		}
+	}
 
 	for _, orig := range toRename {
 		var nf file
@@ -45,9 +52,14 @@ func main() {
 	}
 }
 
+type matchResult struct {
+	base, ext string
+	index int
+}
+
 // match returns the new file name, or an error if the file name
 // didn't match our pattern.
-func match(fileName string) (string, error) {
+func match(fileName string) (*matchResult, error) {
 	pieces := strings.Split(fileName, ".")
 	ext := pieces[len(pieces)-1]
 	base := strings.Join(pieces[:len(pieces)-1], ".")
@@ -55,7 +67,8 @@ func match(fileName string) (string, error) {
 	name := strings.Join(pieces[0:len(pieces)-1], "_")
 	number, err := strconv.Atoi(pieces[len(pieces)-1])
 	if err != nil {
-		return "", fmt.Errorf("%s didn't match our pattern", fileName)
+		return nil, fmt.Errorf("%s didn't match our pattern", fileName)
 	}
-	return fmt.Sprintf("%s - %d.%s", strings.Title(name), number, ext), nil
+	return &matchResult{strings.Title(name), number, ext}, nil
+	}
 }
