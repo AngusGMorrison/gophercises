@@ -44,7 +44,10 @@ func main() {
 		}
 		origPath := filepath.Join(dir, orig)
 		newPath := filepath.Join(dir, newFileName)
-		fmt.Printf("mv %s => %s\n", origPath, newPath)
+		err = os.Rename(origPath, newPath)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
