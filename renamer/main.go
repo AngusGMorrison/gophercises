@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,10 @@ import (
 )
 
 func main() {
+	var dry bool
+	flag.BoolVar(&dry, "dry", true, "whether or not this should be a real or dry run")
+	flag.Parse()
+
 	dir := "fixtures"
 	toRename := make(map[string][]string)
 
@@ -35,9 +40,11 @@ func main() {
 			oldPath := filepath.Join(dir, fileName)
 			newPath := filepath.Join(dir, newFileName)
 			fmt.Printf("mv %s => %s\n", oldPath, newPath)
-			err := os.Rename(oldPath, newPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "rename %s: %v\n", oldPath, err)
+			if !dry {
+				err := os.Rename(oldPath, newPath)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "rename %s: %v\n", oldPath, err)
+				}
 			}
 		}
 	}
