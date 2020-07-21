@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"html/template"
+	"log"
 	"net/http"
 
 	"github.com/angusgmorrison/gophercises/quiethn"
@@ -22,7 +23,8 @@ func main() {
 	flag.Parse()
 
 	http.HandleFunc("/", topStories)
-	http.ListenAndServe(":"+*port, nil)
+	log.Printf("Listening on port %s\n", *port)
+	http.ListenAndServe("localhost:"+*port, nil)
 }
 
 func topStories(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +34,7 @@ func topStories(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError)
 		return
 	}
-	tmpl.ExecuteTemplate(w, "top_stories", stories)
-	// Render titles and URLS in a HTML template
+	if err = tmpl.ExecuteTemplate(w, "top_stories", stories); err != nil {
+		log.Println(err)
+	}
 }
