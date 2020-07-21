@@ -42,8 +42,6 @@ func renderJSON(path string) []byte {
 }
 
 func TestTopStories(t *testing.T) {
-	oldNStories := nStories
-	nStories = 3
 	server := testServer()
 	oldTopStoriesEndpoint := topStoriesEndpoint
 	topStoriesEndpoint = server.URL + "/topstories.json"
@@ -51,20 +49,20 @@ func TestTopStories(t *testing.T) {
 	itemEndpoint = server.URL + "/item/%d.json"
 
 	defer func() {
-		nStories = oldNStories
 		topStoriesEndpoint = oldTopStoriesEndpoint
 		itemEndpoint = oldItemEndpoint
 		server.Close()
 	}()
 
-	stories, err := TopStories()
+	maxStories := 3
+	stories, err := TopStories(maxStories)
 	if err != nil {
 		t.Fatalf("received error: %v", err)
 	}
 
 	t.Run("returns the correct number of stories", func(t *testing.T) {
-		if len(stories) != nStories {
-			t.Errorf("got %d stories, want %d", len(stories), nStories)
+		if len(stories) != maxStories {
+			t.Errorf("got %d stories, want %d", len(stories), maxStories)
 		}
 	})
 
@@ -79,7 +77,6 @@ func TestTopStories(t *testing.T) {
 	t.Run("returns stories in the correct order", func(t *testing.T) {
 		order := []int{1, 3, 4} // fixture 2 is of type 'comment' and should be skipped
 		for i, story := range stories {
-			fmt.Printf("%+v\n", story)
 			if story.ID != order[i] {
 				t.Fatalf("want story at position %d to have ID %d, got %d", i, order[i], story.ID)
 			}

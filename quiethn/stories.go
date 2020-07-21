@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	nStories           = 30
 	baseEndpoint       = "https://hacker-news.firebaseio.com/v0"
 	topStoriesEndpoint = baseEndpoint + "/topstories.json"
 	itemEndpoint       = baseEndpoint + "/item/%d.json"
@@ -32,13 +31,13 @@ type Item struct {
 
 // TopStories fetches the top maxStories stories from HackerNews,
 // ignoring comments, users and job postings.
-func TopStories() ([]*Item, error) {
+func TopStories(max int) ([]*Item, error) {
 	itemIDs, err := getTopItemIDs()
 	if err != nil {
 		return nil, fmt.Errorf("TopStories(): %v", err)
 	}
 
-	stories, err := getTopStories(itemIDs)
+	stories, err := getTopStories(itemIDs, max)
 	if err != nil {
 		return nil, fmt.Errorf("TopStories(): %v", err)
 	}
@@ -65,10 +64,10 @@ func getTopItemIDs() ([]int, error) {
 
 // getTopStories fetches the data for each item ID, filtering out
 // non-story items until maxStories stories have been retrieved.
-func getTopStories(IDs []int) ([]*Item, error) {
+func getTopStories(IDs []int, max int) ([]*Item, error) {
 	stories := make([]*Item, 0)
 	for _, id := range IDs {
-		if len(stories) == nStories {
+		if len(stories) == max {
 			break
 		}
 
