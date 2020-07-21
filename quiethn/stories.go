@@ -32,7 +32,7 @@ type Item struct {
 // TopStories fetches the top maxStories stories from HackerNews,
 // ignoring comments, users and job postings.
 func TopStories(max int) ([]*Item, error) {
-	itemIDs, err := getTopItemIDs()
+	itemIDs, err := GetTopItemIDs()
 	if err != nil {
 		return nil, fmt.Errorf("TopStories(): %v", err)
 	}
@@ -45,9 +45,9 @@ func TopStories(max int) ([]*Item, error) {
 	return stories, nil
 }
 
-// getTopItemIDs returns the ids for the top 500 stories currently on
+// GetTopItemIDs returns the ids for the top 500 stories currently on
 // Hacker News.
-func getTopItemIDs() ([]int, error) {
+func GetTopItemIDs() ([]int, error) {
 	resp, err := http.Get(topStoriesEndpoint)
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func getTopStories(IDs []int, max int) ([]*Item, error) {
 			break
 		}
 
-		story, err := getStory(id)
+		story, err := GetStory(id)
 		if err != nil {
 			if err != errItemType {
 				fmt.Fprintln(os.Stderr, err)
@@ -86,10 +86,10 @@ func getTopStories(IDs []int, max int) ([]*Item, error) {
 
 var errItemType = errors.New("item is not a story")
 
-// getStory fetches an item from Hacker News given its ID and returns
+// GetStory fetches an item from Hacker News given its ID and returns
 // it if it has Type == "story", or an error otherwise.
-func getStory(id int) (*Item, error) {
-	itm, err := getItem(id)
+func GetStory(id int) (*Item, error) {
+	itm, err := GetItem(id)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +99,9 @@ func getStory(id int) (*Item, error) {
 	return itm, nil
 }
 
-// getItem fetches and returns a single item from Hacker News given
+// GetItem fetches and returns a single item from Hacker News given
 // its ID.
-func getItem(id int) (*Item, error) {
+func GetItem(id int) (*Item, error) {
 	endpoint := fmt.Sprintf(itemEndpoint, id)
 	resp, err := http.Get(endpoint)
 	if err != nil {
