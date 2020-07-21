@@ -32,7 +32,7 @@ type Item struct {
 // TopStories fetches the top maxStories stories from HackerNews,
 // ignoring comments, users and job postings.
 func TopStories(max int) ([]*Item, error) {
-	itemIDs, err := GetTopItemIDs()
+	itemIDs, err := TopItemIDs()
 	if err != nil {
 		return nil, fmt.Errorf("TopStories(): %v", err)
 	}
@@ -47,7 +47,7 @@ func TopStories(max int) ([]*Item, error) {
 
 // GetTopItemIDs returns the ids for the top 500 stories currently on
 // Hacker News.
-func GetTopItemIDs() ([]int, error) {
+func TopItemIDs() ([]int, error) {
 	resp, err := http.Get(topStoriesEndpoint)
 	if err != nil {
 		return nil, err
