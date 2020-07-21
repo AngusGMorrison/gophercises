@@ -87,6 +87,8 @@ func getTopStories(IDs []int) ([]*Item, error) {
 
 var errItemType = errors.New("item is not a story")
 
+// getStory fetches an item from Hacker News given its ID and returns
+// it if it has Type == "story", or an error otherwise.
 func getStory(id int) (*Item, error) {
 	itm, err := getItem(id)
 	if err != nil {
@@ -98,6 +100,8 @@ func getStory(id int) (*Item, error) {
 	return itm, nil
 }
 
+// getItem fetches and returns a single item from Hacker News given
+// its ID.
 func getItem(id int) (*Item, error) {
 	endpoint := fmt.Sprintf(itemEndpoint, id)
 	resp, err := http.Get(endpoint)
