@@ -12,52 +12,8 @@ import (
 	"testing"
 )
 
-const (
-	fixturePath = "fixtures"
-	itemPath    = fixturePath + "/items/%s"
-)
-
-func testServer() *httptest.Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/topstories.json", func(w http.ResponseWriter, r *http.Request) {
-		data, _ := renderJSON(fixturePath + "/topstories.json")
-		w.Write(data)
-	})
-	mux.HandleFunc("/item/", func(w http.ResponseWriter, r *http.Request) {
-		id := filepath.Base(r.URL.Path)
-		path := fmt.Sprintf(itemPath, id)
-		data, err := renderJSON(path)
-		if err != nil {
-			http.Error(w, "Page not found", http.StatusNotFound)
-			return
-		}
-		w.Write(data)
-	})
-	return httptest.NewServer(mux)
-}
-
-func renderJSON(path string) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err // report as 404
-	}
-	defer f.Close()
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		panic(err) // should not happen in test environment
-	}
-	return data, nil
-}
-
 func TestTopStories(t *testing.T) {
-	server := testServer()
-	oldBaseEndpoint := baseEndpoint
-	baseEndpoint = server.URL
-
-	defer func() {
-		baseEndpoint = oldBaseEndpoint
-		server.Close()
-	}()
+	defer setup()()
 
 	testCases := []struct {
 		maxStories, wantStories int
@@ -109,14 +65,7 @@ func TestTopStories(t *testing.T) {
 // no more than once every 2 minutes as benchmark consumes a large
 // number of available ports which are left in TIME_WAIT.
 func BenchmarkTopStories(b *testing.B) {
-	server := testServer()
-	oldBaseEndpoint := baseEndpoint
-	baseEndpoint = server.URL
-
-	defer func() {
-		baseEndpoint = oldBaseEndpoint
-		server.Close()
-	}()
+	defer setup()()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -125,14 +74,7 @@ func BenchmarkTopStories(b *testing.B) {
 }
 
 func TestTopItemIDs(t *testing.T) {
-	server := testServer()
-	oldBaseEndpoint := baseEndpoint
-	baseEndpoint = server.URL
-
-	defer func() {
-		server.Close()
-		baseEndpoint = oldBaseEndpoint
-	}()
+	defer setup()()
 
 	t.Run("returns the correct item IDs in order", func(t *testing.T) {
 		IDs, err := TopItemIDs()
@@ -149,14 +91,7 @@ func TestTopItemIDs(t *testing.T) {
 }
 
 func TestGetStory(t *testing.T) {
-	server := testServer()
-	oldBaseEndpoint := baseEndpoint
-	baseEndpoint = server.URL
-
-	defer func() {
-		server.Close()
-		baseEndpoint = oldBaseEndpoint
-	}()
+	defer setup()()
 
 	t.Run("returns an item when the ID corresponds to a story", func(t *testing.T) {
 		wantID := 1 // fixture 1 is a story
@@ -185,14 +120,7 @@ func TestGetStory(t *testing.T) {
 }
 
 func TestGetItem(t *testing.T) {
-	server := testServer()
-	oldBaseEndpoint := baseEndpoint
-	baseEndpoint = server.URL
-
-	defer func() {
-		server.Close()
-		baseEndpoint = oldBaseEndpoint
-	}()
+	defer setup()()
 
 	t.Run("returns the correct Item when the ID is valid", func(t *testing.T) {
 		wantID := 1
@@ -222,4 +150,52 @@ func TestGetItem(t *testing.T) {
 		}
 	})
 
+}
+
+func setup() func() {
+	server := testServer()
+	oldBaseEndpoint := baseEndpoint
+	baseEndpoint = server.URL
+
+	return func() {
+		baseEndpoint = oldBaseEndpoint
+		server.Close()
+	}
+}
+
+const (
+	fixturePath = "fixtures"
+	itemPath    = fixturePath + "/items/%s"
+)
+
+func testServer() *httptest.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/topstories.json", func(w http.ResponseWriter, r *http.Request) {
+		data, _ := renderJSON(fixturePath + "/topstories.json")
+		w.Write(data)
+	})
+	mux.HandleFunc("/item/", func(w http.ResponseWriter, r *http.Request) {
+		id := filepath.Base(r.URL.Path)
+		path := fmt.Sprintf(itemPath, id)
+		data, err := renderJSON(path)
+		if err != nil {
+			http.Error(w, "Page not found", http.StatusNotFound)
+			return
+		}
+		w.Write(data)
+	})
+	return httptest.NewServer(mux)
+}
+
+func renderJSON(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err // report as 404
+	}
+	defer f.Close()
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		panic(err) // should not happen in test environment
+	}
+	return data, nil
 }

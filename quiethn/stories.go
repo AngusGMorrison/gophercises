@@ -74,27 +74,15 @@ type result struct {
 // the event that more stories are requested than there are available,
 // the meaximum number of available stories is returned.
 func getTopStories(IDs []int, max int) ([]*Item, error) {
-	sema := make(chan struct{}, 20) // counting semaphore
-	results := make(chan *result)
-
-	getStory := func(id int) {
-		sema <- struct{}{}        // acquire a token
-		defer func() { <-sema }() // release token when done
-
-		story, err := GetStory(id)
-		if err != nil {
-			results <- &result{Err: err}
-			return
-		}
-		results <- &result{Story: story}
-	}
-
 	var pending, skipped int
 	var seenAll bool
 	stories := make(map[int]*Item)
+	sema := make(chan struct{}, 20) // counting semaphore
+	results := make(chan *result)
+
 	for len(stories) < max && !seenAll { // until sufficient stories are found...
-		// ...start enough goroutines to populate the remaining items on
-		// the assumption that all will be stories.
+		// ...start enough goroutines to populate the remaining items
+		// on the assumption that all will be stories.
 		found := len(stories)
 		for i := 0; i < max-found; i++ {
 			nextID := found + skipped + i
@@ -103,7 +91,7 @@ func getTopStories(IDs []int, max int) ([]*Item, error) {
 				break
 			}
 			pending++
-			go getStory(IDs[nextID])
+			go getStoryConcurrent(IDs[nextID], sema, results)
 		}
 
 		// While goroutines are active, receive from them and populate
@@ -117,19 +105,24 @@ func getTopStories(IDs []int, max int) ([]*Item, error) {
 			}
 		}
 	}
-	// Return stories in their original order
-	orderedStories := make([]*Item, len(stories))
-	for i, j := 0, 0; i < len(stories)+skipped; i++ {
-		storyID := IDs[i]
-		if story, ok := stories[storyID]; ok {
-			orderedStories[j] = story
-			j++
-		}
-	}
-	return orderedStories, nil
+
+	IDsProcessed := len(stories) + skipped
+	return orderStories(IDs, stories, IDsProcessed), nil
 }
 
 var errItemType = errors.New("item is not a story")
+
+func getStoryConcurrent(id int, sema chan struct{}, results chan<- *result) {
+	sema <- struct{}{}        // acquire a token
+	defer func() { <-sema }() // release token when done
+
+	story, err := GetStory(id)
+	if err != nil {
+		results <- &result{Err: err}
+		return
+	}
+	results <- &result{Story: story}
+}
 
 // GetStory fetches an item from Hacker News given its ID and returns
 // it if it has Type == "story", or an error otherwise.
@@ -165,6 +158,18 @@ func GetItem(id int) (*Item, error) {
 		return nil, fmt.Errorf("decoding item %d: %v", id, err)
 	}
 	return &itm, nil
+}
+
+func orderStories(IDs []int, stories map[int]*Item, IDsProcessed int) []*Item {
+	ordered := make([]*Item, len(stories))
+	for i, j := 0, 0; i < IDsProcessed; i++ {
+		storyID := IDs[i]
+		if story, ok := stories[storyID]; ok {
+			ordered[j] = story
+			j++
+		}
+	}
+	return ordered
 }
 
 func min(a, b int) int {
