@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 )
 
 var (
 	baseEndpoint       = "https://hacker-news.firebaseio.com/v0"
-	topStoriesEndpoint = baseEndpoint + "/topstories.json"
-	itemEndpoint       = baseEndpoint + "/item/%d.json"
+	topStoriesEndpoint = "/topstories.json"
+	itemEndpoint       = "/item/"
 )
+
+const maxTopStories = 500
 
 // Item represents a HackerNews item without its text content and
 // fields related to comments and polls.
@@ -31,13 +32,14 @@ type Item struct {
 
 // TopStories fetches the top maxStories stories from HackerNews,
 // ignoring comments, users and job postings.
-func TopStories(max int) ([]*Item, error) {
+func TopStories(nStories int) ([]*Item, error) {
 	itemIDs, err := TopItemIDs()
 	if err != nil {
 		return nil, fmt.Errorf("TopStories(): %v", err)
 	}
 
-	stories, err := getTopStories(itemIDs, max)
+	nStories = min(nStories, maxTopStories) // prevent a request exceeding the max possible stories
+	stories, err := getTopStories(itemIDs, nStories)
 	if err != nil {
 		return nil, fmt.Errorf("TopStories(): %v", err)
 	}
@@ -45,10 +47,10 @@ func TopStories(max int) ([]*Item, error) {
 	return stories, nil
 }
 
-// GetTopItemIDs returns the ids for the top 500 stories currently on
+// TopItemIDs returns the ids for the top 500 stories currently on
 // Hacker News.
 func TopItemIDs() ([]int, error) {
-	resp, err := http.Get(topStoriesEndpoint)
+	resp, err := http.Get(fmt.Sprintf("%s%s", baseEndpoint, topStoriesEndpoint))
 	if err != nil {
 		return nil, err
 	}
@@ -62,26 +64,69 @@ func TopItemIDs() ([]int, error) {
 	return itemIDs, nil
 }
 
+type result struct {
+	Story *Item
+	Err   error
+}
+
 // getTopStories fetches the data for each item ID, filtering out
-// non-story items until maxStories stories have been retrieved.
+// non-story items until maxStories stories have been retrieved. In
+// the event that more stories are requested than there are available,
+// the meaximum number of available stories is returned.
 func getTopStories(IDs []int, max int) ([]*Item, error) {
-	stories := make([]*Item, 0)
-	for _, id := range IDs {
-		if len(stories) == max {
-			break
-		}
+	sema := make(chan struct{}, 20) // counting semaphore
+	results := make(chan *result)
+
+	getStory := func(id int) {
+		sema <- struct{}{}        // acquire a token
+		defer func() { <-sema }() // release token when done
 
 		story, err := GetStory(id)
 		if err != nil {
-			if err != errItemType {
-				fmt.Fprintln(os.Stderr, err)
-			}
-			continue
+			results <- &result{Err: err}
+			return
 		}
-		stories = append(stories, story)
+		results <- &result{Story: story}
 	}
 
-	return stories, nil
+	var pending, skipped int
+	var seenAll bool
+	stories := make(map[int]*Item)
+	for len(stories) < max && !seenAll { // until sufficient stories are found...
+		// ...start enough goroutines to populate the remaining items on
+		// the assumption that all will be stories.
+		found := len(stories)
+		for i := 0; i < max-found; i++ {
+			nextID := found + skipped + i
+			if nextID == len(IDs) {
+				seenAll = true
+				break
+			}
+			pending++
+			go getStory(IDs[nextID])
+		}
+
+		// While goroutines are active, receive from them and populate
+		// the stories map.
+		for ; pending > 0; pending-- {
+			result := <-results
+			if result.Err != nil {
+				skipped++
+			} else {
+				stories[result.Story.ID] = result.Story
+			}
+		}
+	}
+	// Return stories in their original order
+	orderedStories := make([]*Item, len(stories))
+	for i, j := 0, 0; i < len(stories)+skipped; i++ {
+		storyID := IDs[i]
+		if story, ok := stories[storyID]; ok {
+			orderedStories[j] = story
+			j++
+		}
+	}
+	return orderedStories, nil
 }
 
 var errItemType = errors.New("item is not a story")
@@ -102,7 +147,7 @@ func GetStory(id int) (*Item, error) {
 // GetItem fetches and returns a single item from Hacker News given
 // its ID.
 func GetItem(id int) (*Item, error) {
-	endpoint := fmt.Sprintf(itemEndpoint, id)
+	endpoint := fmt.Sprintf("%s%s%d.json", baseEndpoint, itemEndpoint, id)
 	resp, err := http.Get(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("fetching item %d: %v", id, err)
@@ -120,4 +165,11 @@ func GetItem(id int) (*Item, error) {
 		return nil, fmt.Errorf("decoding item %d: %v", id, err)
 	}
 	return &itm, nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

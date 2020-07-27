@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -50,55 +51,87 @@ func renderJSON(path string) ([]byte, error) {
 
 func TestTopStories(t *testing.T) {
 	server := testServer()
-	oldTopStoriesEndpoint := topStoriesEndpoint
-	topStoriesEndpoint = server.URL + "/topstories.json"
-	oldItemEndpoint := itemEndpoint
-	itemEndpoint = server.URL + "/item/%d.json"
+	oldBaseEndpoint := baseEndpoint
+	baseEndpoint = server.URL
 
 	defer func() {
-		topStoriesEndpoint = oldTopStoriesEndpoint
-		itemEndpoint = oldItemEndpoint
+		baseEndpoint = oldBaseEndpoint
 		server.Close()
 	}()
 
-	maxStories := 3
-	stories, err := TopStories(maxStories)
-	if err != nil {
-		t.Fatalf("received error: %v", err)
+	testCases := []struct {
+		maxStories, wantStories int
+	}{
+		{3, 3},
+		{10, 4}, // return all available stories
 	}
 
-	t.Run("returns the correct number of stories", func(t *testing.T) {
-		if len(stories) != maxStories {
-			t.Errorf("got %d stories, want %d", len(stories), maxStories)
+	for _, tc := range testCases {
+		desc := fmt.Sprintf("TopStories(%d):", tc.maxStories)
+		stories, err := TopStories(tc.maxStories)
+		if err != nil {
+			t.Fatalf("received error: %v", err)
 		}
-	})
 
-	t.Run("returns 'story' items only", func(t *testing.T) {
-		for _, story := range stories {
-			if story.Type != "story" {
-				t.Fatalf("item %d has type %q; only type 'story' is allowed", story.ID, story.Type)
+		t.Run(fmt.Sprintf("%s returns the correct number of stories", desc), func(t *testing.T) {
+			if len(stories) != tc.wantStories {
+				t.Errorf("got %d stories, want %d", len(stories), tc.wantStories)
 			}
-		}
-	})
+		})
 
-	t.Run("returns stories in the correct order", func(t *testing.T) {
-		order := []int{1, 3, 4} // fixture 2 is of type 'comment' and should be skipped
-		for i, story := range stories {
-			if story.ID != order[i] {
-				t.Fatalf("want story at position %d to have ID %d, got %d", i, order[i], story.ID)
+		t.Run(fmt.Sprintf("%s returns 'story' items only", desc), func(t *testing.T) {
+			for _, story := range stories {
+				if story.Type != "story" {
+					t.Fatalf("item %d has type %q; only type 'story' is allowed",
+						story.ID, story.Type)
+				}
 			}
-		}
-	})
+		})
+
+		t.Run(fmt.Sprintf("%s returns stories in the correct order", desc), func(t *testing.T) {
+			sorted := make([]*Item, len(stories))
+			copy(sorted, stories)
+			sort.Slice(sorted, func(i, j int) bool {
+				return sorted[i].ID < sorted[j].ID
+			})
+
+			for i, story := range stories {
+				if story.ID != sorted[i].ID {
+					t.Fatalf("want story at position %d to have ID %d, got %d",
+						i, sorted[i].ID, story.ID)
+				}
+			}
+		})
+	}
+}
+
+// Approx. 20% faster than Gophercises implementation. Should be run
+// no more than once every 2 minutes as benchmark consumes a large
+// number of available ports which are left in TIME_WAIT.
+func BenchmarkTopStories(b *testing.B) {
+	server := testServer()
+	oldBaseEndpoint := baseEndpoint
+	baseEndpoint = server.URL
+
+	defer func() {
+		baseEndpoint = oldBaseEndpoint
+		server.Close()
+	}()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		TopStories(4)
+	}
 }
 
 func TestTopItemIDs(t *testing.T) {
 	server := testServer()
-	oldEndpoint := topStoriesEndpoint
-	topStoriesEndpoint = server.URL + "/topstories.json"
+	oldBaseEndpoint := baseEndpoint
+	baseEndpoint = server.URL
 
 	defer func() {
 		server.Close()
-		topStoriesEndpoint = oldEndpoint
+		baseEndpoint = oldBaseEndpoint
 	}()
 
 	t.Run("returns the correct item IDs in order", func(t *testing.T) {
@@ -117,12 +150,12 @@ func TestTopItemIDs(t *testing.T) {
 
 func TestGetStory(t *testing.T) {
 	server := testServer()
-	oldEndpoint := itemEndpoint
-	itemEndpoint = server.URL + "/item/%d.json"
+	oldBaseEndpoint := baseEndpoint
+	baseEndpoint = server.URL
 
 	defer func() {
 		server.Close()
-		itemEndpoint = oldEndpoint
+		baseEndpoint = oldBaseEndpoint
 	}()
 
 	t.Run("returns an item when the ID corresponds to a story", func(t *testing.T) {
@@ -153,12 +186,12 @@ func TestGetStory(t *testing.T) {
 
 func TestGetItem(t *testing.T) {
 	server := testServer()
-	oldEndpoint := itemEndpoint
-	itemEndpoint = server.URL + "/item/%d.json"
+	oldBaseEndpoint := baseEndpoint
+	baseEndpoint = server.URL
 
 	defer func() {
 		server.Close()
-		itemEndpoint = oldEndpoint
+		baseEndpoint = oldBaseEndpoint
 	}()
 
 	t.Run("returns the correct Item when the ID is valid", func(t *testing.T) {
