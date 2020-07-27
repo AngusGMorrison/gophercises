@@ -1,3 +1,6 @@
+// Package quiethn provides functionality for retriving items from
+// HackerNews, including the top stories, stories by ID and items by
+// ID.
 package quiethn
 
 import (
@@ -5,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"time"
 )
 
 var (
@@ -33,6 +38,7 @@ type Item struct {
 // TopStories fetches the top maxStories stories from HackerNews,
 // ignoring comments, users and job postings.
 func TopStories(nStories int) ([]*Item, error) {
+	start := time.Now()
 	itemIDs, err := TopItemIDs()
 	if err != nil {
 		return nil, fmt.Errorf("TopStories(): %v", err)
@@ -44,6 +50,7 @@ func TopStories(nStories int) ([]*Item, error) {
 		return nil, fmt.Errorf("TopStories(): %v", err)
 	}
 
+	log.Printf("found %d stories in %.2f seconds", len(stories), time.Since(start).Seconds())
 	return stories, nil
 }
 
@@ -72,7 +79,7 @@ type result struct {
 // getTopStories fetches the data for each item ID, filtering out
 // non-story items until maxStories stories have been retrieved. In
 // the event that more stories are requested than there are available,
-// the meaximum number of available stories is returned.
+// the maximum available stories is returned.
 func getTopStories(IDs []int, max int) ([]*Item, error) {
 	var pending, skipped int
 	var seenAll bool
